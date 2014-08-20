@@ -57,7 +57,7 @@ C
 C     Open the right species file
       IF(Spp.EQ.1) THEN 
        WRITE(*,*) "Simulation for: REDBAIT"
-       OPEN(UNIT=13,FILE="E.Redbait.Dat")
+       OPEN(UNIT=13,FILE="Chile_OM.Dat")
        IF(EorW.EQ.1) THEN 
         CLOSE(13)
         OPEN(UNIT=13,FILE="W.Redbait.Dat")
