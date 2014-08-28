@@ -119,7 +119,7 @@ C
       INTEGER Yr,Col   
 	  
 C	  Get dimensions from the spec file
-      OPEN (UNIT=9, FILE="SPFOM.spec")
+      OPEN (UNIT=9, FILE="Chile_OM.spec")
       READ(9,*)
       READ(9,*) Nyear
       READ(9,*)
