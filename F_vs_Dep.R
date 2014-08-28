@@ -14,9 +14,8 @@ require(RColorBrewer)
 # Control
 
 # Switches
-run.again      <- F # Run the operating model?
-read.again.R   <- F # Read the output using R?
-read.again.for <- T # Read the output using fortran?
+run.again      <- T # Run the operating model?
+read.again.for <- F # Read the output using fortran?
 plot.how       <- 0 # Plot? 0 = No, 1 = Together, 2 = Sp by Sp
 
 # Parallel stuff
@@ -59,28 +58,28 @@ FFs <- seq(0,MaxF,by=Fstep)
 if(run.again==T){
   
   # A function to parallelize over Fs
-  RunOM <- function(FFs,Outpath,OMpath,DATfiles){
+  RunOM <- function(FFs,Outpath,OMpath,DATfile){
     # Create the folders needed
     Fpath <- paste0(Outpath,"/F_",FFs)
     dir.create(Fpath)
     setwd(Fpath)
     # Copy the appropriate files
     file.copy(from=paste(OMpath,DATfile,sep="/"),to=paste(Fpath,DATfile,sep="/"),overwrite=T)
-    file.copy(from=paste(OMpath,"SPFOM.SPEC",sep="/"),to=paste(Fpath,"SPFOM.SPEC",sep="/"),overwrite=T)
+    file.copy(from=paste(OMpath,"Chile_OM.SPEC",sep="/"),to=paste(Fpath,"Chile_OM.SPEC",sep="/"),overwrite=T)
     file.copy(from=paste(OMpath,"SPFspp.SPEC",sep="/"),to=paste(Fpath,"SPFspp.SPEC",sep="/"),overwrite=T)
     # Modify the DAT file
     t.datfile <- readLines(DATfile)
     # Modify the SPEC file
-    t.specfile <- readLines("SPFOM.SPEC")
+    t.specfile <- readLines("Chile_OM.SPEC")
     t.specfile[6] <- paste(FFs,0.7,sep="\t")
-    writeLines(t.specfile,"SPFOM.SPEC")
+    writeLines(t.specfile,"Chile_OM.SPEC")
     # Modify the spp file
 #     t.sppfile <- readLines("SPFspp.SPEC")
 #     t.sppfile[2] <- SppN[stock]
 #     t.sppfile[4] <- StockN[stock]
 #     writeLines(t.sppfile,"SPFspp.SPEC")
     # Run the model 
-    shell(paste0(OMpath,"/SPFOM.exe"),intern=FALSE, wait=TRUE)
+    shell(paste0(OMpath,"/Chile_OM.exe"),intern=FALSE, wait=TRUE)
   }
   
   
@@ -91,81 +90,11 @@ if(run.again==T){
     
     #Parallel part
     sfInit(parallel=TRUE, cpus=Ncpus, type="SOCK")
-    sfSapply(FFs,RunOM,Outpath,OMpath,DATfiles,SppN,StockN,stock)
+    sfSapply(FFs,RunOM,Outpath,OMpath,DATfile)
     sfStop()   
     
 #    cat("Finished ",Stocks[stock],"\n")
 #  } #Stock loop close
-}
-
-
-
-##############################################################################################
-# Read the output using R
-if(read.again.R==T){
-  # Create a table to store the results
-  final.table <- data.frame(Performance_Measure=c("Mean_B1","Sigma_B1","Q05_B1","Q25_B1",
-                                                  "Q50_B1","Q75_B1","Q95_B1",
-                                                  "Mean_B15","Sigma_B15","Q05_B15","Q25_B15",
-                                                  "Q50_B15","Q75_B15","Q95_B15",
-                                                  "Mean_SSB","Sigma_SSB","Q05_SSB","Q25_SSB",
-                                                  "Q50_SSB","Q75_SSB","Q95_SSB",
-                                                  "Mean_SSB5","Sigma_SSB5","Q05_SSB5","Q25_SSB5",
-                                                  "Q50_SSB5","Q75_SSB5","Q95_SSB5",
-                                                  "Mean_C","Sigma_C","Q05_C","Q25_C",
-                                                  "Q50_C","Q75_C","Q95_C",
-                                                  "Mean_C5","Sigma_C5","Q05_C5","Q25_C5",
-                                                  "Q50_C5","Q75_C5","Q95_C5"))
-  
-  # Populate the table
-  for(stock in 1:length(Stocks)){
-    stockpath <- paste(Outpath,Stocks[stock],sep="/")
-    # Loop over Fs
-    for(ff in 1:length(FFs)){
-      # Get the right folder
-      Fpath <- paste0(stockpath,"/F_",FFs[ff])
-      setwd(Fpath)
-      # Read the output
-      outs <- read.table("SUMMARY.OUT")
-      tt <- length(outs[,1])
-      sims <- (length(outs[1,])-1)/9
-      totts <- (tt-1)*sims
-      
-      #create a new matrix with the right result format (all results)
-      outsnew <- as.matrix(outs[-tt,2:10])
-      for(it in 2:sims)
-        outsnew <- rbind(outsnew,as.matrix(outs[-tt,((it-1)*9+2):(it*9+1)]))
-      #create a new matrix with the right result format (last 5 years)
-      outs5 <- as.matrix(outs[(tt-5):(tt-1),2:10])
-      for(it in 2:sims)
-        outs5 <- rbind(outs5,as.matrix(outs[(tt-5):(tt-1),((it-1)*9+2):(it*9+1)]))
-      
-      #Calculate means and all that (all years)
-      means <- apply(outsnew,2,mean,na.rm=T)
-      #medians <- apply(outsnew,2,median,na.rm=T)
-      SDs <- apply(outsnew,2,sd,na.rm=T)
-      Quants <- apply(outsnew,2,quantile,na.rm=T,probs=c(0.05,0.25,0.5,0.75,0.95))
-      #Calculate means and all that (last 5 years)
-      means5 <- apply(outs5,2,mean,na.rm=T)
-      #medians5 <- apply(outs5,2,median,na.rm=T)
-      SDs5 <- apply(outs5,2,sd,na.rm=T)
-      Quants5 <- apply(outs5,2,quantile,na.rm=T,probs=c(0.05,0.25,0.5,0.75,0.95))
-      
-      #Save to the final table
-      final.table <- cbind(final.table,c(means[1],SDs[1],Quants[,1],
-                                         means5[1],SDs5[1],Quants5[,1],
-                                         means[2],SDs[2],Quants[,2],
-                                         means5[2],SDs5[2],Quants5[,2],
-                                         means[4],SDs[4],Quants[,4],
-                                         means5[4],SDs5[4],Quants5[,4]))
-      cat(Stocks[stock],"F =",FFs[ff],"\n")
-    }
-  }
-  
-  # Save the results
-  dir.create(paste0(Outpath,"/AAA-Summary"))
-  setwd(paste0(Outpath,"/AAA-Summary"))
-  write.csv(final.table,"final.csv", row.names=F)
 }
 
 ##############################################################################################
@@ -193,12 +122,12 @@ if(read.again.for==T){
                                                    "Prob_Depl_30","Prob_Depl_25","Prob_Depl_20"))
   
   # Populate the table
-  for(stock in 1:length(Stocks)){
-    stockpath <- paste(Outpath,Stocks[stock],sep="/")
+#  for(stock in 1:length(Stocks)){
+#    stockpath <- paste(Outpath,Stocks[stock],sep="/")
     # Loop over Fs
     for(scenario in 1:length(FFs)){
       # Get the right folder
-      Fpath <- paste0(stockpath,"/F_",FFs[scenario])
+      Fpath <- paste0(Outpath,"/F_",FFs[scenario])
       setwd(Fpath)
       # Run the summarizing fortran program
       shell(paste0(OMpath,"/Sort/Sort.exe"),intern=FALSE, wait=TRUE)
@@ -219,7 +148,7 @@ if(read.again.for==T){
                                            mean.depl,depl.probs))
       cat(Stocks[stock],"F =",FFs[scenario],"\n")
     }
-  }
+#  }
   
   # Add names to the final table
   final.names <- character(length(Stocks)*length(FFs))
