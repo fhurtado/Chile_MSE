@@ -14,9 +14,9 @@ require(RColorBrewer)
 # Control
 
 # Switches
-run.again      <- T # Run the operating model?
+run.again      <- F # Run the operating model?
 read.again.for <- F # Read the output using fortran?
-plot.how       <- 0 # Plot? 0 = No, 1 = Together, 2 = Sp by Sp
+plot.how       <- 2 # Plot? 0 = No, 1 = Together, 2 = Sp by Sp
 
 # Parallel stuff
 Ncpus          <- 7 # How many CPUs to use for parallel computing
@@ -37,7 +37,7 @@ Wheight        <- 4.5
 Wwidth         <- 5.4
 
 # File names and important paths
-Outpath <- "C:/Users/Felipe/Desktop/Chile_MSE/FvD"
+Outpath <- "C:/Users/Felipe/Desktop/Chile_MSE/FvD_B1_Surv"
 OMpath <- "C:/Users/Felipe/Desktop/Chile_MSE/V1.1"
 
 DATfile <- "Chile_OM.DAT"
@@ -146,18 +146,16 @@ if(read.again.for==T){
       plot.table <- cbind(plot.table,outs.vec)
       report.table <- cbind(report.table,c(outs.vec[c(1,2,8,9,15,16,22,23,29,30,36,37)],
                                            mean.depl,depl.probs))
-      cat(Stocks[stock],"F =",FFs[scenario],"\n")
+      cat("F =",FFs[scenario],"\n")
     }
 #  }
   
   # Add names to the final table
-  final.names <- character(length(Stocks)*length(FFs))
-  for(stock in 1:length(Stocks))
-    final.names[((stock-1)*length(FFs)+1):(stock*length(FFs))] <- paste0(Stocks[stock],"_",FFs)
+  final.names <- paste0("F_",FFs)
   names(plot.table) <- c("Performance_Measure",final.names)
   names(report.table) <- c("Performance_Measure",final.names)
   # Save the results
-  dir.create(paste0(Outpath,"/AAA-Summary"))
+  dir.create(paste0(Outpath,"/AAA-Summary"), showWarnings = FALSE)
   setwd(paste0(Outpath,"/AAA-Summary"))
   write.csv(plot.table,"plot.csv", row.names=F)
   write.csv(report.table,"report.csv", row.names=F)
@@ -175,212 +173,32 @@ if(plot.how==1|plot.how==2){
   # Calculate depletion B1
   RightCol <- c(0,2,3,4,5,6)
   
-  DepletionsB1 <- array(0,dim=c(length(FFs),8,6))
-  DepletionsB1[,1,] <- FFs
+  DepletionsB1 <- array(0,dim=c(7,length(FFs)))
+  DepletionsB1[1,] <- FFs
   for(qua in 1:6){
-    for(stock in 1:length(Stocks)){
-      for(ff in 1:length(FFs)){
-        DepletionsB1[ff,stock+1,qua] <- plot.table[8+RightCol[qua],(stock-1)*length(FFs)+ff+1]/
-          plot.table[8,(stock-1)*length(FFs)+2]
-      }
-    }
+    DepletionsB1[qua+1,] <- as.numeric(plot.table[8+RightCol[qua],2:(length(FFs)+1)]/
+      plot.table[8,2])
   }
   
   # Calculate depletion SSB
-  DepletionsSSB <- array(0,dim=c(length(FFs),8,6))
-  DepletionsSSB[,1,] <- FFs
+  DepletionsSSB <- array(0,dim=c(7,length(FFs)))
+  DepletionsSSB[1,] <- FFs
   for(qua in 1:6){
-    for(stock in 1:length(Stocks)){
-      for(ff in 1:length(FFs)){
-        DepletionsSSB[ff,stock+1,qua] <- plot.table[22+RightCol[qua],(stock-1)*length(FFs)+ff+1]/plot.table[22,(stock-1)*length(FFs)+2]
-      }
+    for(ff in 1:length(FFs)){
+      DepletionsSSB[qua+1,] <- as.numeric(plot.table[22+RightCol[qua],2:(length(FFs)+1)]/
+        plot.table[22,2])
     }
   }
+
   #Catch and msy
-  Totcatch <- array(0,dim=c(length(FFs),8,6))
-  Totcatch[,1,] <- FFs
-  Relcatch <- array(0,dim=c(length(FFs),8,6))
-  Relcatch[,1,] <- FFs
+  Totcatch <- array(0,dim=c(7,length(FFs)))
+  Totcatch[1,] <- FFs
+  Relcatch <- array(0,dim=c(7,length(FFs)))
+  Relcatch[1,] <- FFs
   for(qua in 1:6){
-    for(stock in 1:length(Stocks)){
-      for(ff in 1:length(FFs)){
-        Relcatch[ff,stock+1,qua] <- plot.table[36+RightCol[qua],(stock-1)*length(FFs)+ff+1]/
-          max(plot.table[36,((stock-1)*length(FFs)+2):(stock*length(FFs)+1)])
-        Totcatch[ff,stock+1,qua] <- plot.table[36+RightCol[qua],(stock-1)*length(FFs)+ff+1]
-      }
-    }
-  }
-  
-  ##################################################################################################
-  # Plot all species together
-  
-  if(plot.how==1){
-    #####################################################################################
-    # Plot everything /// Just means, no uncertainty
-    if(NoUncPlot==T){
-      
-      #B1+
-      if(B1pPlot==T){
-        windows(height=Wheight, width=Wwidth)
-        par(mfrow=c(2,2),mar=c(0,0,0,0),oma=c(5,4,0,0))
-        
-        spps <- matrix(c(1:3,3:7),ncol=4)
-        spnames <- c("Redbait", "Jack Mackerel", "Blue Mackerel", "Sardine")
-        
-        for(spp in 1:4){
-          plot(1,1, xlim=c(0,MaxF),ylim=c(0,1.1),axes=F,type='n')
-          box()
-          lines(DepletionsB1[,1,1],DepletionsB1[,spps[1,spp]+1,1],col="gray")
-          lines(DepletionsB1[,1,1],DepletionsB1[,spps[2,spp]+1,1])
-          if(spp==1|spp==3) axis(2, at=c(0,0.5,1))
-          if(spp==3|spp==4) axis(1)
-          text(x=-0.05,y=1.1,labels=spnames[spp],pos=4)
-          if(spp==1)
-            legend("topright",legend=c("East","West"),lwd=1,col=c("gray","black"),bty='n')
-        }
-        mtext(side=1, text="Exploitation rate", outer=T, line=2.5)
-        mtext(side=2, text=expression("Depletion (B1+/B1+"[0]*")"),outer=T, line=2.5)
-      }
-      
-      #SSB
-      windows(height=Wheight, width=Wwidth)
-      par(mfrow=c(2,2),mar=c(0,0,0,0),oma=c(5,4,0,0))
-      
-      spps <- matrix(c(1:3,3:7),ncol=4)
-      spnames <- c("Redbait", "Jack Mackerel", "Blue Mackerel", "Sardine")
-      
-      for(spp in 1:4){
-        plot(1,1, xlim=c(0,MaxF),ylim=c(0,1.1),axes=F,type='n')
-        box()
-        lines(DepletionsSSB[,1,1],DepletionsSSB[,spps[1,spp]+1,1],col="gray")
-        lines(DepletionsSSB[,1,1],DepletionsSSB[,spps[2,spp]+1,1])
-        if(spp==1|spp==3) axis(2, at=c(0,0.5,1))
-        if(spp==3|spp==4) axis(1)
-        text(x=-0.05,y=1.1,labels=spnames[spp],pos=4)
-        if(spp==1)
-          legend("topright",legend=c("East","West"),lwd=1,col=c("gray","black"),bty='n')
-      }
-      mtext(side=1, text="Exploitation rate", outer=T, line=2.5)
-      mtext(side=2, text=expression("Depletion (SSB/SSB"[0]*")"),outer=T, line=2.5)
-      
-      
-      #Catch
-      windows(height=Wheight, width=Wwidth)
-      par(mfrow=c(2,2),mar=c(0,0,0,0),oma=c(5,4,0,0))
-      
-      spps <- matrix(c(1:3,3:7),ncol=4)
-      spnames <- c("Redbait", "Jack Mackerel", "Blue Mackerel", "Sardine")
-      
-      for(spp in 1:4){
-        plot(1,1, xlim=c(0,MaxF),ylim=c(0,1.1),axes=F,type='n')
-        box()
-        lines(Relcatch[,1,1],Relcatch[,spps[1,spp]+1,1],col="gray")
-        lines(Relcatch[,1,1],Relcatch[,spps[2,spp]+1,1])
-        if(spp==1|spp==3) axis(2, at=c(0,0.5,1))
-        if(spp==3|spp==4) axis(1)
-        text(x=-0.05,y=1.1,labels=spnames[spp],pos=4)
-        if(spp==1)
-          legend("topright",legend=c("East","West"),lwd=1,col=c("gray","black"),bty='n')
-      }
-      mtext(side=1, text="Exploitation rate", outer=T, line=2.5)
-      mtext(side=2, text="Catch",outer=T, line=2.5)
-    }
-    
-    
-    ##################################################################################
-    # Plots with uncertainty
-    
-    # B1+
-    if(B1pPlot==T){
-      windows(height=Wheight, width=Wwidth)
-      par(mfrow=c(2,2),mar=c(0,0,0,0),oma=c(5,4,0,0))
-      
-      spps <- matrix(c(1:3,3:7),ncol=4)
-      spnames <- c("Redbait", "Jack Mackerel", "Blue Mackerel", "Sardine")
-      maxY <- max(DepletionsB1[,,6])
-      
-      for(spp in 1:4){
-        Wcol <- WColLine
-        if(spp==2) Wcol <- JackCol
-        plot(1,1, xlim=c(0,MaxF),ylim=c(0,maxY),axes=F,type='n')
-        box()
-        polygon(x=c(DepletionsB1[,1,1],rev(DepletionsB1[,1,1])),
-                y=c(DepletionsB1[,spps[1,spp]+1,2],rev(DepletionsB1[,spps[1,spp]+1,6])),
-                col=adjustcolor(EColPol,alpha.f=0.5),border=NA)
-        polygon(x=c(DepletionsB1[,1,1],rev(DepletionsB1[,1,1])),
-                y=c(DepletionsB1[,spps[2,spp]+1,2],rev(DepletionsB1[,spps[2,spp]+1,6])),
-                col=adjustcolor(WColPol,alpha.f=0.5),border=NA)
-        lines(DepletionsB1[,1,1],DepletionsB1[,spps[1,spp]+1,1],col=EColLine,lwd=2)
-        lines(DepletionsB1[,1,1],DepletionsB1[,spps[2,spp]+1,1],col=Wcol,lwd=2)
-        if(spp==1|spp==3) axis(2, at=c(0,0.5,1,1.5))
-        if(spp==3|spp==4) axis(1)
-        text(x=MaxF+0.05,y=1.5,labels=spnames[spp],pos=2)
-        if(spp==1)
-          legend("topleft",legend=c("East","West"),lwd=2,col=c(EColLine,WColLine),bty='n')
-      }
-      mtext(side=1, text="Exploitation rate", outer=T, line=2.5)
-      mtext(side=2, text=expression("Depletion (B1+/B1+"[0]*")"),outer=T, line=2.5)    
-    }
-    
-    # SSB
-    windows(height=Wheight, width=Wwidth)
-    par(mfrow=c(2,2),mar=c(0,0,0,0),oma=c(5,4,0,0))
-    
-    spps <- matrix(c(1:3,3:7),ncol=4)
-    spnames <- c("Redbait", "Jack Mackerel", "Blue Mackerel", "Sardine")
-    maxY <- max(DepletionsSSB[,,6])
-    
-    for(spp in 1:4){
-      Wcol <- WColLine
-      if(spp==2) Wcol <- JackCol
-      plot(1,1, xlim=c(0,MaxF),ylim=c(0,maxY),axes=F,type='n')
-      box()
-      polygon(x=c(DepletionsSSB[,1,1],rev(DepletionsSSB[,1,1])),
-              y=c(DepletionsSSB[,spps[1,spp]+1,2],rev(DepletionsSSB[,spps[1,spp]+1,6])),
-              col=adjustcolor(EColPol,alpha.f=0.5),border=NA)
-      polygon(x=c(DepletionsSSB[,1,1],rev(DepletionsSSB[,1,1])),
-              y=c(DepletionsSSB[,spps[2,spp]+1,2],rev(DepletionsSSB[,spps[2,spp]+1,6])),
-              col=adjustcolor(WColPol,alpha.f=0.5),border=NA)
-      lines(DepletionsSSB[,1,1],DepletionsSSB[,spps[1,spp]+1,1],col=EColLine,lwd=2)
-      lines(DepletionsSSB[,1,1],DepletionsSSB[,spps[2,spp]+1,1],col=Wcol,lwd=2)
-      if(spp==1|spp==3) axis(2, at=c(0,0.5,1,1.5))
-      if(spp==3|spp==4) axis(1)
-      text(x=MaxF+0.05,y=1.5,labels=spnames[spp],pos=2)
-      if(spp==1)
-        legend("topleft",legend=c("East","West"),lwd=2,col=c(EColLine,WColLine),bty='n')
-    }
-    mtext(side=1, text="Exploitation rate", outer=T, line=2.5)
-    mtext(side=2, text=expression("Depletion (SSB/SSB"[0]*")"),outer=T, line=2.5)
-    
-    # Catch
-    windows(height=Wheight, width=Wwidth)
-    par(mfrow=c(2,2),mar=c(0,0,0,0),oma=c(5,4,0,0))
-    
-    spps <- matrix(c(1:3,3:7),ncol=4)
-    spnames <- c("Redbait", "Jack Mackerel", "Blue Mackerel", "Sardine")
-    maxY <- max(Relcatch[,,6])
-    
-    for(spp in 1:4){
-      Wcol <- WColLine
-      if(spp==2) Wcol <- JackCol
-      plot(1,1, xlim=c(0,MaxF),ylim=c(0,maxY),axes=F,type='n')
-      box()
-      polygon(x=c(Relcatch[,1,1],rev(Relcatch[,1,1])),
-              y=c(Relcatch[,spps[1,spp]+1,2],rev(Relcatch[,spps[1,spp]+1,6])),
-              col=adjustcolor(EColPol,alpha.f=0.5),border=NA)
-      polygon(x=c(Relcatch[,1,1],rev(Relcatch[,1,1])),
-              y=c(Relcatch[,spps[2,spp]+1,2],rev(Relcatch[,spps[2,spp]+1,6])),
-              col=adjustcolor(WColPol,alpha.f=0.5),border=NA)
-      lines(Relcatch[,1,1],Relcatch[,spps[1,spp]+1,1],col=EColLine,lwd=2)
-      lines(Relcatch[,1,1],Relcatch[,spps[2,spp]+1,1],col=Wcol,lwd=2)
-      if(spp==1|spp==3) axis(2, at=c(0,0.5,1,1.5,2))
-      if(spp==3|spp==4) axis(1)
-      text(x=-0.05,y=2,labels=spnames[spp],pos=4)
-      if(spp==1)
-        legend("topright",legend=c("East","West"),lwd=2,col=c(EColLine,WColLine),bty='n')
-    }
-    mtext(side=1, text="Exploitation rate", outer=T, line=2.5)
-    mtext(side=2, text="Catch",outer=T, line=2.5)
+    Relcatch[qua+1,] <- as.numeric(plot.table[36+RightCol[qua],2:(length(FFs)+1)]/
+      max(plot.table[36,2:(length(FFs)+1)]))
+    Totcatch[qua+1,] <- as.numeric(plot.table[36+RightCol[qua],2:(length(FFs)+1)])
   }
   
   ##################################################################################################
@@ -388,60 +206,53 @@ if(plot.how==1|plot.how==2){
   
   if(plot.how==2){
     
-    spps <- matrix(c(1:3,3:7),ncol=4)
-    spnames <- c("Redbait", "Jack Mackerel", "Blue Mackerel", "Sardine")
-    
-    for(spp in 1:4){
+#     spps <- matrix(c(1:3,3:7),ncol=4)
+#     spnames <- c("Redbait", "Jack Mackerel", "Blue Mackerel", "Sardine")
+#     
+#     for(spp in 1:4){
       windows(height=Wheight*0.7, width=Wwidth*1.2)
       par(mfrow=c(1,2),mar=c(0,4,0,0),oma=c(4,0,0,0.2))    
       
-      # SSB
-      maxY <- max(DepletionsSSB[,,6])
+      # B1+
+      maxY <- max(DepletionsB1[7,])
       Wcol <- WColLine
-      if(spp==2) Wcol <- JackCol
-      plot(1,1, xlim=c(0,MaxF),ylim=c(0,maxY),axes=F,type='n', ylab=NA)
+      plot(1,1, xlim=c(0,MaxF),ylim=c(0,maxY),axes=F,type='n', ylab=NA, yaxs='i')
       box()
-      polygon(x=c(DepletionsSSB[,1,1],rev(DepletionsSSB[,1,1])),
-              y=c(DepletionsSSB[,spps[1,spp]+1,2],rev(DepletionsSSB[,spps[1,spp]+1,6])),
-              col=adjustcolor(EColPol,alpha.f=0.5),border=NA)
-      polygon(x=c(DepletionsSSB[,1,1],rev(DepletionsSSB[,1,1])),
-              y=c(DepletionsSSB[,spps[2,spp]+1,2],rev(DepletionsSSB[,spps[2,spp]+1,6])),
+      polygon(x=c(DepletionsB1[1,],rev(DepletionsB1[1,])),
+              y=c(DepletionsB1[3,],rev(DepletionsB1[7,])),
               col=adjustcolor(WColPol,alpha.f=0.5),border=NA)
-      lines(DepletionsSSB[,1,1],DepletionsSSB[,spps[1,spp]+1,1],col=EColLine,lwd=2)
-      lines(DepletionsSSB[,1,1],DepletionsSSB[,spps[2,spp]+1,1],col=Wcol,lwd=2)
+      polygon(x=c(DepletionsB1[1,],rev(DepletionsB1[1,])),
+              y=c(DepletionsB1[4,],rev(DepletionsB1[6,])),
+              col=adjustcolor(WColPol,alpha.f=0.8),border=NA)
+      lines(DepletionsB1[1,],DepletionsB1[2,],col=Wcol,lwd=2)
       axis(2, at=c(0,0.5,1,1.5))
       axis(1)
-      if(spp!=2)
-        legend("topright",legend=c("East","West"),lwd=2,col=c(EColLine,WColLine),bty='n')
-      mtext(side=2, text=expression("Depletion (SSB/SSB"[0]*")"), line=2.0)
+      mtext(side=2, text=expression("Depletion (B1+/B1+"[0]*")"), line=2.0)
       
       # Catch
-      maxY <- max(Relcatch[,,6])
+      maxY <- max(Relcatch[7,])
       Wcol <- WColLine
-      if(spp==2) Wcol <- JackCol
-      plot(1,1, xlim=c(0,MaxF),ylim=c(0,maxY),axes=F,type='n', ylab=NA)
+      plot(1,1, xlim=c(0,MaxF),ylim=c(0,maxY),axes=F,type='n', ylab=NA, yaxs='i')
       box()
-      polygon(x=c(Relcatch[,1,1],rev(Relcatch[,1,1])),
-              y=c(Relcatch[,spps[1,spp]+1,2],rev(Relcatch[,spps[1,spp]+1,6])),
-              col=adjustcolor(EColPol,alpha.f=0.5),border=NA)
-      polygon(x=c(Relcatch[,1,1],rev(Relcatch[,1,1])),
-              y=c(Relcatch[,spps[2,spp]+1,2],rev(Relcatch[,spps[2,spp]+1,6])),
+      polygon(x=c(Relcatch[1,],rev(Relcatch[1,])),
+              y=c(Relcatch[3,],rev(Relcatch[7,])),
               col=adjustcolor(WColPol,alpha.f=0.5),border=NA)
-      lines(Relcatch[,1,1],Relcatch[,spps[1,spp]+1,1],col=EColLine,lwd=2)
-      lines(Relcatch[,1,1],Relcatch[,spps[2,spp]+1,1],col=Wcol,lwd=2)
+      polygon(x=c(Relcatch[1,],rev(Relcatch[1,])),
+              y=c(Relcatch[4,],rev(Relcatch[6,])),
+              col=adjustcolor(WColPol,alpha.f=0.8),border=NA)
+      lines(Relcatch[1,],Relcatch[2,],col=Wcol,lwd=2)
       axis(2, at=c(0,0.5,1,1.5,2))
       axis(1)
       mtext(side=1, text="Exploitation rate", outer=T, line=2.5)
       mtext(side=2, text="Catch", line=2.0)
-    }
+#    }
   }
   
   ##########################################################
   #Fmsy
-  Emsy <- data.frame(Stock=Stocks, 
-                     Emsy=Relcatch[,1,1][which(Relcatch[,,1]==1,arr.ind=T)[2:8,1]],
-                     Emsy.catch=Totcatch[,,1][which(Relcatch[,,1]==1,arr.ind=T)[2:8,]],
-                     Emsy.depl=round(DepletionsSSB[,,1][which(Relcatch[,,1]==1,arr.ind=T)[2:8,]],digits=2)
+  Emsy <- data.frame(Emsy=Relcatch[1,][which(Relcatch[2,]==1,arr.ind=T)],
+                     Emsy.catch=Totcatch[2,][which(Relcatch[2,]==1,arr.ind=T)],
+                     Emsy.depl=round(DepletionsB1[2,][which(Relcatch[2,]==1,arr.ind=T)],digits=2)
   )
   print("Emsy values for all stocks")
   print(Emsy)
@@ -449,13 +260,12 @@ if(plot.how==1|plot.how==2){
   ############################################################
   # Depletions
   
-  DepObj <- c(0.9,0.8,0.75,seq(0.7,0.4,by=-0.1))
+  DepObj <- c(seq(0.9,0.1,by=-0.1))
   EspDepls <- data.frame(Targ_Depl = DepObj)
-  for(spp in 1:7){
-    EspDepls <- cbind(EspDepls,
-                      round(approx(x=DepletionsSSB[,spp+1,1],y=DepletionsSSB[,1,1],xout=DepObj)$y,3))
-  }
-  names(EspDepls) <- c("Targ_Depl",Stocks)
+  EspDepls <- cbind(EspDepls,
+                      round(approx(x=DepletionsSSB[2,],y=DepletionsSSB[1,],xout=DepObj)$y,3))
+
+  names(EspDepls) <- c("Targ_Depl","Harvest_Rate")
   print("Harvest rates to achieve depletion objectives")
   print(EspDepls)
 }
