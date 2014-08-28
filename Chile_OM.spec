@@ -17,7 +17,7 @@
 # OFL option (0=Only Emsymin; 1=Increasing Emsy; 2=Emsy is temp-dependent)
 0
 # Tier option (0= RBC= Emsy; 1= Tier 1; 2= Tier 2; 3= Tier 3)
-1
+0
 # Cutoff option
 0
 # Buffer for P* (0.90592 for p*=0.4); Max value for OFL (Only used in OFLopt 1 and 2)
@@ -29,7 +29,7 @@
 # Sensitivity option: What selectivity to use (0=Base (i.e. Giannini), 1=Simple (i.e. Knuckey), 2=Maturity)
 1
 # Sensitivity option: Use different frequencies for the DEPM survey (0=every year, 1=especify frequency); frequency intervals; Bias
-1 3 0.0
+0 3 0.0
 # Sensitivity option: Time varying selectivities
 0
 # Sensitivity option: Time varying weight at age
